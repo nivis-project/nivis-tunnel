@@ -137,7 +137,7 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s.handle(conn)
+			s.handle(ctx, conn)
 		}()
 	}
 }
@@ -151,7 +151,7 @@ func (s *Server) ParkedCount() int {
 }
 
 // handle takes one accepted connection through announcement and pairing.
-func (s *Server) handle(conn net.Conn) {
+func (s *Server) handle(ctx context.Context, conn net.Conn) {
 	frame, err := proto.ReadFrameWithDeadline(conn, s.cfg.FrameTimeout)
 	if err != nil {
 		// The stream id is not logged here: it either does not exist yet or
@@ -208,19 +208,26 @@ func (s *Server) handle(conn net.Conn) {
 	s.mu.Unlock()
 
 	s.log.Info("parked", "stream", string(frame.StreamID), "role", frame.Role.String())
-	s.expireAfter(frame.StreamID, w)
+	s.expireAfter(ctx, frame.StreamID, w)
 }
 
 // expireAfter closes a parked party if it is not claimed before the rendezvous
 // deadline. It blocks, running on the connection's own goroutine.
-func (s *Server) expireAfter(id proto.StreamID, w *waiting) {
+//
+// It also releases on context cancellation. Without that, shutting the relay
+// down would wait out every parked connection's rendezvous deadline — up to
+// five minutes of a process that has been asked to stop.
+func (s *Server) expireAfter(ctx context.Context, id proto.StreamID, w *waiting) {
 	timer := time.NewTimer(s.cfg.RendezvousTimeout)
 	defer timer.Stop()
 
+	reason := "expired unmatched connection"
 	select {
 	case <-w.paired:
 		// Claimed; the splice owns the connection now.
 		return
+	case <-ctx.Done():
+		reason = "released unmatched connection: relay is shutting down"
 	case <-timer.C:
 	}
 
@@ -236,7 +243,7 @@ func (s *Server) expireAfter(id proto.StreamID, w *waiting) {
 	}
 	s.mu.Unlock()
 
-	s.log.Info("expired unmatched connection", "stream", string(id), "role", w.role.String())
+	s.log.Info(reason, "stream", string(id), "role", w.role.String())
 	_ = w.conn.Close()
 }
 

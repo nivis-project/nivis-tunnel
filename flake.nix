@@ -30,7 +30,7 @@
       # Stated once: the binaries and the test derivation must be built from
       # the same tree, or the gate would be testing something other than what
       # it ships.
-      vendorHash = "sha256-GmdlHYFQXFeecNDeY611Sopxguuf63I1xH2LanXNXO4=";
+      vendorHash = "sha256-wKrycy8pg6UBnRtkM/xmXE5Ky/yXV3+Q8xk3n6VHClE=";
 
       # One Go module builds three binaries; they share the wire protocol in
       # ./proto, which is the reason they live in one repository at all.

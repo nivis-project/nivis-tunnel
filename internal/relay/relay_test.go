@@ -417,3 +417,54 @@ func waitFor(t *testing.T, cond func() bool, msg string) {
 	}
 	t.Fatal(msg)
 }
+
+func TestShutdownDoesNotWaitOutRendezvousDeadlines(t *testing.T) {
+	// Regression. Serve used to wait for every parked connection's rendezvous
+	// deadline before returning, so a relay asked to stop would hang for up to
+	// five minutes — and with no inbound port anywhere, a relay that will not
+	// restart is every deploy against it stopped.
+	cap := &captureLogger{}
+	srv, err := New(Config{RendezvousTimeout: time.Hour, Logger: cap.logger()})
+	if err != nil {
+		t.Fatalf("New() = %v", err)
+	}
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen() = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- srv.Serve(ctx, ln) }()
+
+	// Park a party whose counterpart will never come.
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial() = %v", err)
+	}
+	defer conn.Close()
+	frame, err := proto.Frame{Version: proto.Version, Role: proto.RoleAgent, StreamID: "poc-target-01"}.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Write(frame); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, func() bool { return srv.ParkedCount() == 1 }, "the party never parked")
+
+	cancel()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Serve() = %v, want nil on shutdown", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Serve() waited on a parked connection's rendezvous deadline instead of shutting down")
+	}
+
+	if !strings.Contains(cap.text(), "relay is shutting down") {
+		t.Fatal("the released connection was not logged as a shutdown release")
+	}
+}

@@ -45,6 +45,30 @@ carries, so it is safe to host and trivial to self-host. And both ends dial out,
 so this works on a host with no public address at all: private subnets, on-prem,
 edge.
 
+## Using it
+
+```sh
+# once: generate the orchestrator keypair. The private half stays with you;
+# the public half goes into the agent's NixOS configuration.
+nivis-tunnel keygen --out ~/.config/nivis-tunnel/orchestrator.key
+
+# then: reach a machine that has no inbound port
+ssh -o ProxyCommand='nivis-tunnel connect %h --relay relay.example:7843 --key ~/.config/nivis-tunnel/orchestrator.key' \
+    -o StrictHostKeyChecking=accept-new \
+    root@i-0abc123def456789
+```
+
+`accept-new` rather than `no`, and the difference matters. Under AWS SSM the
+tunnel authenticates the target, so ssh's host key check is redundant and
+elastinix disables it. **This tunnel does not authenticate the target**, so ssh's
+check is doing real work: it pins the host key on first contact and refuses an
+impostor on every connection after it. Trust on first use is not nothing, and it
+is what is available until target attestation lands.
+
+The stream id is the cloud's own instance id — a value the orchestrator already
+holds in its state and the agent can read locally. It is an identifier, never a
+credential: anyone may claim one, and all authority comes from the handshake.
+
 ## Layout
 
 | Path | |

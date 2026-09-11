@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/flynn/noise"
+	"golang.org/x/crypto/curve25519"
 )
 
 // cipherSuite is Noise_XK_25519_ChaChaPoly_BLAKE2s.
@@ -60,6 +61,27 @@ func DecodePublicKey(s string) ([]byte, error) {
 		return nil, fmt.Errorf("proto: public key is %d bytes, want %d", len(b), cipherSuite.DHLen())
 	}
 	return b, nil
+}
+
+// DecodePrivateKey parses a private key and recovers its public half.
+//
+// Only the private half is stored. Keeping one value on disk removes the whole
+// class of failure where a pair drifts apart and an operator is left comparing
+// two files to find out which half is stale.
+func DecodePrivateKey(s string) (Keypair, error) {
+	priv, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return Keypair{}, fmt.Errorf("proto: decoding private key: %w", err)
+	}
+	if len(priv) != cipherSuite.DHLen() {
+		return Keypair{}, fmt.Errorf("proto: private key is %d bytes, want %d", len(priv), cipherSuite.DHLen())
+	}
+
+	pub, err := curve25519.X25519(priv, curve25519.Basepoint)
+	if err != nil {
+		return Keypair{}, fmt.Errorf("proto: deriving public key: %w", err)
+	}
+	return Keypair{Private: priv, Public: pub}, nil
 }
 
 // ConnectAsAgent runs the agent's half of the handshake over conn.
