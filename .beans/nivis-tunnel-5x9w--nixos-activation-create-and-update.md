@@ -1,12 +1,13 @@
 ---
 # nivis-tunnel-5x9w
 title: 'nixos_activation: Create and Update'
-status: in-progress
+status: completed
 type: epic
 priority: normal
 created_at: 2026-09-11T14:56:38Z
-updated_at: 2026-09-11T16:14:30Z
+updated_at: 2026-09-11T18:22:02Z
 parent: nivis-tunnel-8h0c
+openspec-link: openspec/changes/archive/2026-09-11-activation-read-and-apply
 blocked_by:
     - nivis-tunnel-74sg
     - nivis-tunnel-6u2u
@@ -16,34 +17,43 @@ blocked_by:
 
 Push a closure and activate it.
 
-## Why
+## Summary of Changes
 
-Three steps, deliberately kept explicit rather than delegated to `deploy-rs` for
-now, so the PoC owns its failure modes. Adopting deploy-rs as the engine is a
-separate, later decision — see the hardening milestone.
+OpenSpec change `activation-read-and-apply`, shared with `nivis-tunnel-74sg`.
 
-## Scope
+Three steps, deliberately explicit rather than delegated to deploy-rs, so the
+PoC owns its failure modes:
 
 ```
-nix copy --to ssh://<target> <closure>
-nix-env --profile /nix/var/nix/profiles/system --set <closure>
+nix-copy-closure --to ssh://<target> <closure>
+nix-env --profile <profile> --set <closure>
 <closure>/bin/switch-to-configuration switch
 ```
 
-- The closure arrives as a store path nivis already realised from a `__build`
-  leaf, so the diff is free: *the store path changed* **is** the change.
-- Root is a trusted user, so store path signature checking does not apply. It
-  would if a non-root deploy user were ever used — note it, do not build for it.
-- Activation failure must surface the target's stderr, not a generic error.
+Plus: retry until a timeout when reaching the target, because a machine created
+moments ago is not yet reachable and elastinix polls for exactly this reason. A
+`profile` attribute, because generations are what make rollback possible. And
+**Delete does nothing to the machine** — removing a resource from state says
+what is managed, not what should be torn down.
 
-## Acceptance
+## Evidence
 
-An end-to-end test changes a live configuration, applies, and asserts the new
-generation is live by reading it back. A deliberately broken configuration fails
-the apply with the target's own error message visible.
+Ten subtests in a VM test with a relay, a target whose firewall admits nothing,
+and an operator running `tofu`. Every step asserted on the machine itself:
 
-## Known gap
+- the target is not reachable directly, so everything below went through the tunnel
+- after apply: the closure is present, the profile resolves to it, and the
+  observable file the generation adds is there
+- the machine is **still reachable afterwards** — a switch restarts units whose
+  definitions changed, and restarting the agent would cut the tunnel the
+  activation is travelling over
+- changing the closure activates the other generation
+- a failing activation **names the step and carries the target's own output**
+- destroy leaves the generation running and the agent active
 
-No rollback. A configuration that breaks networking or the agent strands the
-machine, and in the PoC the public address is the only way back. Magic rollback
-is tracked separately and is the highest-priority item after rung 3.
+## Known gaps, recorded rather than hidden
+
+The three steps are **not atomic**: the profile is set before the switch, so a
+failed switch leaves the profile naming a generation that is not running. And a
+deploy that changed the agent's unit would sever its own connection. Both are on
+`nivis-tunnel-wnkn`, which is why magic rollback is the first thing after rung 3.
