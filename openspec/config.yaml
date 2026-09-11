@@ -1,0 +1,45 @@
+schema: spec-driven
+store: nivis
+
+context: |
+  nivis-tunnel is a cloud-neutral deploy transport: a replacement for AWS SSM
+  Session Manager that also works on Hetzner and on-prem.
+
+  The point of the project is NOT the tunnel. It is the image/live-config
+  SPLIT. nivis today can only rebuild a whole machine image; every change to a
+  NixOS configuration produces a new image, a new snapshot, and a replaced
+  server. The elastinix module already has the split (bootstrap AMI plus a
+  pushed live closure) but depends on AWS SSM. The tunnel is what makes that
+  split available on any cloud.
+
+  Companion repo: terraform-provider-nivis-tunnel holds the `nixos_activation`
+  resource. This repo holds the transport: relay, agent, cli, NixOS module and
+  the wire protocol, together because they share that protocol.
+
+  Tech stack: Go for all binaries. Nix flakes for building and the dev shell,
+  with supported systems enumerated in plain Nix -- flake-utils is NOT used.
+  jj (jujutsu) for version control, colocated with git.
+
+  Architecture: the target has no inbound port. Both ends dial out to a relay
+  that splices two streams by id; Noise runs end to end so the relay only ever
+  sees bytes it cannot read. ssh runs inside that stream, which means
+  nix-copy-closure, switch-to-configuration and deploy-rs all work unchanged --
+  the only integration point is ssh's ProxyCommand.
+
+  Trust model in the PoC is deliberately thin: the orchestrator's public key is
+  baked into the image and the agent accepts only that. The target proves
+  nothing; it is identified by the address the cloud API returned.
+
+rules:
+  proposal:
+    - State which rung of the test ladder the change belongs to.
+    - Name the bean id this change implements.
+  tasks:
+    - Every task that changes behaviour names the test that proves it.
+    - End-to-end tasks state the observable outcome, not the implementation.
+
+operations:
+  archive:
+    guidance:
+      - Update the parent bean's status and openspec-link before finishing.
+      - Commit with jj after archiving, authored by Pim Snel, no attribution trailers.
