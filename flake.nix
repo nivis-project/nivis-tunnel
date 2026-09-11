@@ -74,27 +74,35 @@
 
       # The gate. `nix flake check` must stay green: it is what every OpenSpec
       # change is measured against before it can be archived.
-      checks = forAllSystems (pkgs: {
-        build-relay = self.packages.${pkgs.stdenv.hostPlatform.system}.relay;
-        build-agent = self.packages.${pkgs.stdenv.hostPlatform.system}.agent;
-        build-tunnel = self.packages.${pkgs.stdenv.hostPlatform.system}.tunnel;
+      checks = forAllSystems (
+        pkgs:
+        {
+          build-relay = self.packages.${pkgs.stdenv.hostPlatform.system}.relay;
+          build-agent = self.packages.${pkgs.stdenv.hostPlatform.system}.agent;
+          build-tunnel = self.packages.${pkgs.stdenv.hostPlatform.system}.tunnel;
 
-        # Run through buildGoModule rather than a bare `go test`: the Nix
-        # sandbox has no network, so the tests must be built from the same
-        # vendored tree as the binaries. A hand-rolled runCommand would try to
-        # fetch modules and fail.
-        unit = pkgs.buildGoModule {
-          pname = "nivis-tunnel-tests";
-          inherit version vendorHash;
-          src = ./.;
-          doCheck = true;
-          installPhase = "touch $out";
-        };
+          # Run through buildGoModule rather than a bare `go test`: the Nix
+          # sandbox has no network, so the tests must be built from the same
+          # vendored tree as the binaries. A hand-rolled runCommand would try to
+          # fetch modules and fail.
+          unit = pkgs.buildGoModule {
+            pname = "nivis-tunnel-tests";
+            inherit version vendorHash;
+            src = ./.;
+            doCheck = true;
+            installPhase = "touch $out";
+          };
 
-        fmt = pkgs.runCommand "nixfmt-check" { nativeBuildInputs = [ pkgs.nixfmt-rfc-style ]; } ''
-          nixfmt --check ${./flake.nix} && touch $out
-        '';
-      });
+          fmt = pkgs.runCommand "nixfmt-check" { nativeBuildInputs = [ pkgs.nixfmt-rfc-style ]; } ''
+            nixfmt --check ${./flake.nix} ${./nix/module.nix} ${./nix/rung-0-test.nix} && touch $out
+          '';
+        }
+        // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+          # Rung 0, in three real machines: a relay, a target whose firewall
+          # admits nothing, and an operator. Linux-only because it boots VMs.
+          rung-0 = import ./nix/rung-0-test.nix { inherit self pkgs; };
+        }
+      );
 
       formatter = forAllSystems (pkgs: pkgs.nixfmt-rfc-style);
 

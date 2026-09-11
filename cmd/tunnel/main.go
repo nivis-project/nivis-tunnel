@@ -26,12 +26,22 @@ import (
 var version = "dev"
 
 func main() {
-	if err := run(os.Args[1:]); err != nil {
+	os.Exit(execute(os.Args[1:]))
+}
+
+// execute runs a subcommand and reports its failure, returning the exit status.
+//
+// Separated from main so that tests exercise the real reporting path. What
+// reaches stdout and stderr IS the contract here, and a test that called run
+// directly would be checking a path no operator ever takes.
+func execute(args []string) int {
+	if err := run(args); err != nil {
 		// stderr, always: a byte of this on stdout would corrupt ssh's protocol
 		// and produce a failure that looks like anything but its cause.
 		fmt.Fprintf(os.Stderr, "nivis-tunnel: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 func usage() {
@@ -94,10 +104,15 @@ func runConnect(args []string) error {
 		fs.PrintDefaults()
 	}
 
-	if err := fs.Parse(args); err != nil {
+	// Go's flag package stops parsing at the first non-flag argument, so
+	// `connect <id> --relay ... --key ...` would silently swallow the flags as
+	// positionals. That is exactly the ProxyCommand line this tool documents,
+	// so flags have to work on either side of the stream id.
+	positional, err := parseInterspersed(fs, args)
+	if err != nil {
 		return err
 	}
-	if fs.NArg() != 1 {
+	if len(positional) != 1 {
 		fs.Usage()
 		return errors.New("connect takes exactly one stream id")
 	}
@@ -113,13 +128,36 @@ func runConnect(args []string) error {
 		return err
 	}
 
-	stream, _, err := tunnel.Connect(*relayAddr, proto.StreamID(fs.Arg(0)), key, *timeout)
+	stream, _, err := tunnel.Connect(*relayAddr, proto.StreamID(positional[0]), key, *timeout)
 	if err != nil {
 		return err
 	}
 	defer stream.Close()
 
 	return tunnel.Splice(stream, os.Stdin, os.Stdout)
+}
+
+// parseInterspersed parses flags that appear before, after or around positional
+// arguments, and returns the positionals.
+//
+// Go's flag package stops at the first non-flag argument by design. That is
+// wrong for this command: the natural ProxyCommand line puts the stream id
+// first and the connection options after it, and a silently ignored --relay is
+// a failure an operator would have no way to read.
+func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
+	var positional []string
+	rest := args
+
+	for {
+		if err := fs.Parse(rest); err != nil {
+			return nil, err
+		}
+		if fs.NArg() == 0 {
+			return positional, nil
+		}
+		positional = append(positional, fs.Arg(0))
+		rest = fs.Args()[1:]
+	}
 }
 
 func runKeygen(args []string) error {

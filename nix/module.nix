@@ -80,7 +80,7 @@ in
           "--relay=${cfg.relay}"
           "--stream-id=${cfg.streamId}"
           "--orchestrator-key=${cfg.orchestratorPublicKey}"
-          "--ssh-port=${toString cfg.sshPort}"
+          "--local=127.0.0.1:${toString cfg.sshPort}"
         ];
         Restart = "always";
         RestartSec = "5s";

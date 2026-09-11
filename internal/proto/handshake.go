@@ -84,6 +84,22 @@ func DecodePrivateKey(s string) (Keypair, error) {
 	return Keypair{Private: priv, Public: pub}, nil
 }
 
+// setHandshakeDeadline applies timeout, treating a non-positive value as no
+// deadline at all.
+//
+// The agent needs that: it parks at the relay until an orchestrator arrives,
+// and a machine may legitimately wait days between deploys. The relay's own
+// rendezvous timeout is what bounds that wait, not this one.
+func setHandshakeDeadline(conn net.Conn, timeout time.Duration) error {
+	if timeout <= 0 {
+		return nil
+	}
+	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
+		return fmt.Errorf("proto: setting handshake deadline: %w", err)
+	}
+	return nil
+}
+
 // ConnectAsAgent runs the agent's half of the handshake over conn.
 //
 // The agent is the Noise initiator. That is not an accident of who dialled
@@ -117,8 +133,8 @@ func ConnectAsAgent(conn net.Conn, local Keypair, expectedOrchestrator []byte, t
 		return nil, fmt.Errorf("proto: agent handshake state: %w", err)
 	}
 
-	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
-		return nil, fmt.Errorf("proto: setting handshake deadline: %w", err)
+	if err := setHandshakeDeadline(conn, timeout); err != nil {
+		return nil, err
 	}
 
 	// -> e, es
@@ -180,8 +196,8 @@ func ConnectAsOrchestrator(conn net.Conn, local Keypair, timeout time.Duration) 
 		return nil, nil, fmt.Errorf("proto: orchestrator handshake state: %w", err)
 	}
 
-	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
-		return nil, nil, fmt.Errorf("proto: setting handshake deadline: %w", err)
+	if err := setHandshakeDeadline(conn, timeout); err != nil {
+		return nil, nil, err
 	}
 
 	// -> e, es

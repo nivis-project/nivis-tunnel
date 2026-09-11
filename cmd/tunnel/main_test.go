@@ -127,8 +127,11 @@ func TestDiagnosticsNeverReachStandardOutput(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			// execute rather than run: what main() actually does, including
+			// reporting the returned error. Testing run() alone would check a
+			// path no operator ever takes.
 			restore := captureStdio(t)
-			_ = run(tc.args)
+			_ = execute(tc.args)
 			stdout, stderr := restore()
 
 			if stdout != "" {
@@ -136,6 +139,43 @@ func TestDiagnosticsNeverReachStandardOutput(t *testing.T) {
 			}
 			if strings.TrimSpace(stderr) == "" {
 				t.Fatal("nothing was written to stderr; the failure would be undiagnosable")
+			}
+		})
+	}
+}
+
+func TestFlagsAreAcceptedOnEitherSideOfTheStreamID(t *testing.T) {
+	// Regression. Go's flag package stops parsing at the first non-flag
+	// argument, so `connect <id> --relay ... --key ...` used to swallow both
+	// flags as positionals — and that is the exact ProxyCommand line this tool
+	// documents. It failed with "connect takes exactly one stream id" while
+	// looking, to an operator, like a correct invocation.
+	//
+	// Both orders must reach the same point: a real attempt that fails on the
+	// unreadable key, not on argument parsing.
+	orders := [][]string{
+		{"connect", "poc-target-01", "--relay", "127.0.0.1:1", "--key", "/nonexistent"},
+		{"connect", "--relay", "127.0.0.1:1", "--key", "/nonexistent", "poc-target-01"},
+		{"connect", "--relay", "127.0.0.1:1", "poc-target-01", "--key", "/nonexistent"},
+	}
+
+	for _, args := range orders {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			restore := captureStdio(t)
+			err := run(args)
+			_, stderr := restore()
+
+			if err == nil {
+				t.Fatal("run() = nil, want a failure on the unreadable key")
+			}
+			if strings.Contains(err.Error(), "exactly one stream id") {
+				t.Fatalf("the flags were swallowed as positionals: %v", err)
+			}
+			if !strings.Contains(err.Error(), "reading key file") {
+				t.Fatalf("run() = %v, want it to have got as far as reading the key", err)
+			}
+			if strings.Contains(stderr, "Options:") {
+				t.Fatal("usage was printed; the arguments were misparsed")
 			}
 		})
 	}

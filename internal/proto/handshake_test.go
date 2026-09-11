@@ -328,3 +328,26 @@ func TestNoiseMessageLengthPrefixIsBounded(t *testing.T) {
 		t.Fatal("writeNoiseMessage() = nil, want an error beyond the message limit")
 	}
 }
+
+func TestZeroTimeoutMeansNoDeadline(t *testing.T) {
+	// The agent parks at the relay until an orchestrator arrives, and a machine
+	// may legitimately wait days between deploys. A zero timeout must mean "no
+	// deadline", not "a deadline of now" — which is what SetDeadline(now+0)
+	// would produce, failing every handshake instantly.
+	agent, orch := mustKeypair(t), mustKeypair(t)
+	tr := &tapRelay{}
+	agentSide, orchSide := tr.pair(t)
+
+	orchCh := make(chan error, 1)
+	go func() {
+		_, _, err := ConnectAsOrchestrator(orchSide, orch, 0)
+		orchCh <- err
+	}()
+
+	if _, err := ConnectAsAgent(agentSide, agent, orch.Public, 0); err != nil {
+		t.Fatalf("ConnectAsAgent(timeout=0) = %v, want nil", err)
+	}
+	if err := <-orchCh; err != nil {
+		t.Fatalf("ConnectAsOrchestrator(timeout=0) = %v, want nil", err)
+	}
+}
