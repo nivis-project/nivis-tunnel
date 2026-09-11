@@ -81,7 +81,22 @@ credential: anyone may claim one, and all authority comes from the handshake.
 | `test/e2e`         | end-to-end tests, `e2e` build tag |
 
 The `nixos_activation` resource lives in
-[`terraform-provider-nivis-tunnel`](https://github.com/nivis-project/terraform-provider-nivis-tunnel).
+[`terraform-provider-nivis-tunnel`](https://github.com/nivis-project/terraform-provider-nivis-tunnel),
+which is what makes the tunnel usable declaratively:
+
+```hcl
+resource "nixos_activation" "host" {
+  closure   = "/nix/store/…-nixos-system-host"
+  stream_id = "i-0abc123def456789"
+  relay     = "relay.example:7843"
+  key_file  = "/root/orchestrator.key"
+}
+```
+
+Changing `closure` changes only that resource — no image is rebuilt, no snapshot
+taken, no server replaced. That is the point of the whole project, and it is
+what a machine reachable without an inbound port makes possible.
+
 Planning for both repos lives here: see `beans roadmap`.
 
 ## Status

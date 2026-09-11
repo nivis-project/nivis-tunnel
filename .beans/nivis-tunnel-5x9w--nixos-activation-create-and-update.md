@@ -1,11 +1,11 @@
 ---
 # nivis-tunnel-5x9w
 title: 'nixos_activation: Create and Update'
-status: todo
+status: in-progress
 type: epic
 priority: normal
 created_at: 2026-09-11T14:56:38Z
-updated_at: 2026-09-11T14:58:51Z
+updated_at: 2026-09-11T16:14:30Z
 parent: nivis-tunnel-8h0c
 blocked_by:
     - nivis-tunnel-74sg
