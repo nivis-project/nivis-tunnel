@@ -94,13 +94,17 @@
           };
 
           fmt = pkgs.runCommand "nixfmt-check" { nativeBuildInputs = [ pkgs.nixfmt-rfc-style ]; } ''
-            nixfmt --check ${./flake.nix} ${./nix/module.nix} ${./nix/rung-0-test.nix} && touch $out
+            nixfmt --check ${./flake.nix} ${./nix/module.nix} ${./nix/rung-0-test.nix} ${./nix/rung-1-test.nix} && touch $out
           '';
         }
         // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
           # Rung 0, in three real machines: a relay, a target whose firewall
           # admits nothing, and an operator. Linux-only because it boots VMs.
           rung-0 = import ./nix/rung-0-test.nix { inherit self pkgs; };
+
+          # Rung 1: the payload the transport exists to carry. Kept separate
+          # from rung 0 so that a failure says which claim broke.
+          rung-1 = import ./nix/rung-1-test.nix { inherit self pkgs; };
         }
       );
 

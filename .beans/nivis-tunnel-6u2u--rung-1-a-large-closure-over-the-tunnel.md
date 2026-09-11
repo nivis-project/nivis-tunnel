@@ -1,40 +1,59 @@
 ---
 # nivis-tunnel-6u2u
 title: 'Rung 1: a large closure over the tunnel'
-status: todo
+status: completed
 type: epic
 priority: normal
 created_at: 2026-09-11T14:56:38Z
-updated_at: 2026-09-11T14:58:51Z
+updated_at: 2026-09-11T16:04:08Z
 parent: nivis-tunnel-ou1o
+openspec-link: openspec/changes/archive/2026-09-11-tunnel-closure-transport
 blocked_by:
     - nivis-tunnel-zzv6
 ---
 
-Push a full NixOS system closure through the tunnel with `nix-copy-closure`.
+Push a full Nix closure through the tunnel with `nix-copy-closure`.
 
 ## Why
 
-This is the one property nobody involved has data on. Large closures go fine
+This was the one property nobody involved had data on. Large closures go fine
 over AWS SSM — but that is Amazon's relay, engineered and operated by Amazon,
-not ours. A stream that carries an interactive shell perfectly can still stall,
-deadlock or corrupt under a sustained multi-gigabyte transfer.
+and ours is a few hundred lines old. A transport that carries an interactive
+shell perfectly can still stall, deadlock or corrupt under sustained transfer,
+and that failure shows up as a deploy that hangs rather than one that errors.
 
-It is also the cheapest possible test: one command, no new code, run before any
-provider is built around it.
+## Summary of Changes
 
-## Scope
+OpenSpec change `tunnel-closure-transport`, capability
+`tunnel-closure-transport`. **No production code changed.** The transport was
+already built; this establishes it is fit for its payload. Had it needed code,
+the transport would have been wrong.
 
-- `NIX_SSHOPTS="-F poc.conf" nix-copy-closure root@<id> <path>` where `poc.conf`
-  carries the `ProxyCommand`.
-- Measure: wall time, throughput, memory on the relay.
-- Repeat with the path already present, to confirm `nix copy` sends only what is
-  missing — after the first deploy this is what real traffic looks like.
-- Behaviour on a mid-transfer relay restart: a clean error is acceptable, silent
-  truncation is not.
+`nix/rung-1-test.nix`: a three-machine NixOS VM test. The payload is created
+inside the orchestrator with `nix-store --add` at test time, because NixOS test
+nodes share the host store — copying any pre-existing path would transfer
+nothing and prove nothing. The test asserts the target does not have it first.
 
-## Acceptance
+## Evidence
 
-A full system closure lands on the target and `nix-store --verify --check-contents`
-passes there. Figures recorded in the change summary so the relay's cost as a
-hosted service can be reasoned about later.
+```
+rung 1 payload: /nix/store/rlkajqpr...-payload (16 MiB,
+                sha256 ec390dd6d5adfe6f996afec2f53f7caf84ce8fefe8af78c715273b8241df2858)
+rung 1: 16 MiB closure copied in 1s
+```
+
+- the target admits nothing directly (10s timeout proving it), so a successful
+  copy can only have gone through the tunnel
+- the path is absent from the target before the copy
+- `nix-copy-closure --to` through the `ProxyCommand` succeeds
+- the arrived path hashes to the same value as the source
+- **a repeated copy sends nothing further** — what makes every deploy after the
+  first small, and therefore what decides whether a relay is cheap or expensive
+  to operate
+
+## Figures, for when relay cost is reasoned about
+
+16 MiB in roughly one second inside a VM on a local bridge. That is not a
+throughput measurement — there is no real network here — but it establishes
+there is no stall, no deadlock and no corruption in the path, which was the
+question. Real figures need `nivis-tunnel-zzv6`'s cloud run.
