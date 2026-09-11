@@ -3,9 +3,12 @@
 title: Agent and NixOS module
 status: todo
 type: epic
+priority: normal
 created_at: 2026-09-11T14:56:03Z
-updated_at: 2026-09-11T14:56:03Z
+updated_at: 2026-09-11T15:03:09Z
 parent: nivis-tunnel-xvjv
+blocked_by:
+    - nivis-tunnel-qtx9
 ---
 
 The agent runs on the target: dials out to the relay, waits, completes the Noise

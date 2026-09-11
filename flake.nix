@@ -23,6 +23,15 @@
 
       version = "0.1.0-dev";
 
+      # Pins the dependency tree the three binaries are built from. The agent
+      # ships inside a boot image, so what it links against is part of that
+      # image's change budget; this hash is what makes that auditable.
+      #
+      # Stated once: the binaries and the test derivation must be built from
+      # the same tree, or the gate would be testing something other than what
+      # it ships.
+      vendorHash = "sha256-GmdlHYFQXFeecNDeY611Sopxguuf63I1xH2LanXNXO4=";
+
       # One Go module builds three binaries; they share the wire protocol in
       # ./proto, which is the reason they live in one repository at all.
       mkBinary =
@@ -31,9 +40,7 @@
           pname = "nivis-tunnel-${name}";
           inherit version;
           src = ./.;
-          # No external dependencies yet. Replace with the real hash the moment
-          # go.mod gains one; `nix build` prints the expected value on mismatch.
-          vendorHash = null;
+          inherit vendorHash;
           subPackages = [ "cmd/${name}" ];
           ldflags = [
             "-s"
@@ -72,13 +79,17 @@
         build-agent = self.packages.${pkgs.stdenv.hostPlatform.system}.agent;
         build-tunnel = self.packages.${pkgs.stdenv.hostPlatform.system}.tunnel;
 
-        unit = pkgs.runCommand "go-test" { nativeBuildInputs = [ pkgs.go ]; } ''
-          export HOME=$TMPDIR
-          export GOFLAGS=-mod=mod
-          export GOCACHE=$TMPDIR/go-cache
-          cp -r ${./.} src && chmod -R +w src && cd src
-          go test ./... 2>&1 | tee $out
-        '';
+        # Run through buildGoModule rather than a bare `go test`: the Nix
+        # sandbox has no network, so the tests must be built from the same
+        # vendored tree as the binaries. A hand-rolled runCommand would try to
+        # fetch modules and fail.
+        unit = pkgs.buildGoModule {
+          pname = "nivis-tunnel-tests";
+          inherit version vendorHash;
+          src = ./.;
+          doCheck = true;
+          installPhase = "touch $out";
+        };
 
         fmt = pkgs.runCommand "nixfmt-check" { nativeBuildInputs = [ pkgs.nixfmt-rfc-style ]; } ''
           nixfmt --check ${./flake.nix} && touch $out

@@ -3,9 +3,12 @@
 title: 'Relay: rendezvous and splice'
 status: todo
 type: epic
+priority: normal
 created_at: 2026-09-11T14:56:02Z
-updated_at: 2026-09-11T14:56:02Z
+updated_at: 2026-09-11T15:03:09Z
 parent: nivis-tunnel-xvjv
+blocked_by:
+    - nivis-tunnel-qtx9
 ---
 
 The relay matches two connections by stream id and copies bytes between them. It
