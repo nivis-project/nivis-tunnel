@@ -45,17 +45,16 @@ pkgs.testers.runNixOSTest {
     relay =
       { ... }:
       {
-        systemd.services.nivis-tunnel-relay = {
-          wantedBy = [ "multi-user.target" ];
-          after = [ "network-online.target" ];
-          wants = [ "network-online.target" ];
-          serviceConfig = {
-            ExecStart = "${self.packages.${system}.relay}/bin/relay --listen=:${toString relayPort} --log-level=debug";
-            Restart = "always";
-            DynamicUser = true;
-          };
+        # Through the module rather than a hand-written unit: a module only the
+        # tests never use is a module nobody has run.
+        imports = [ self.nixosModules.relay ];
+
+        services.nivis-tunnel-relay = {
+          enable = true;
+          port = relayPort;
+          # The one machine here that is supposed to accept a connection.
+          openFirewall = true;
         };
-        networking.firewall.allowedTCPPorts = [ relayPort ];
       };
 
     # The target. Note what is absent: no allowedTCPPorts, so the firewall
@@ -120,6 +119,11 @@ pkgs.testers.runNixOSTest {
 
     target.wait_for_unit("nivis-tunnel-agent.service")
     target.wait_for_unit("sshd.service")
+
+    with subtest("the relay module opened only its own port"):
+        # openFirewall defaults to false and this machine asked for it, so the
+        # relay's port must be open and nothing else the module added.
+        relay.succeed("iptables -L nixos-fw -n | grep -q 'dpt:${toString relayPort}'")
 
     with subtest("the agent opens no port of its own"):
         # It dials outward and waits. If it listened, the design would be a

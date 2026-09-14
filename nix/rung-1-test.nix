@@ -44,17 +44,16 @@ pkgs.testers.runNixOSTest {
     relay =
       { ... }:
       {
-        systemd.services.nivis-tunnel-relay = {
-          wantedBy = [ "multi-user.target" ];
-          after = [ "network-online.target" ];
-          wants = [ "network-online.target" ];
-          serviceConfig = {
-            ExecStart = "${self.packages.${system}.relay}/bin/relay --listen=:${toString relayPort} --log-level=debug";
-            Restart = "always";
-            DynamicUser = true;
-          };
+        # Through the module rather than a hand-written unit: a module only the
+        # tests never use is a module nobody has run.
+        imports = [ self.nixosModules.relay ];
+
+        services.nivis-tunnel-relay = {
+          enable = true;
+          port = relayPort;
+          # The one machine here that is supposed to accept a connection.
+          openFirewall = true;
         };
-        networking.firewall.allowedTCPPorts = [ relayPort ];
       };
 
     target =

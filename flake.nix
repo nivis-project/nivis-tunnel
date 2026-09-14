@@ -94,7 +94,7 @@
           };
 
           fmt = pkgs.runCommand "nixfmt-check" { nativeBuildInputs = [ pkgs.nixfmt-rfc-style ]; } ''
-            nixfmt --check ${./flake.nix} ${./nix/module.nix} ${./nix/rung-0-test.nix} ${./nix/rung-1-test.nix} && touch $out
+            nixfmt --check ${./flake.nix} ${./nix/module.nix} ${./nix/rung-0-test.nix} ${./nix/rung-1-test.nix} ${./nix/relay-module.nix} && touch $out
           '';
         }
         // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
@@ -110,6 +110,16 @@
 
       formatter = forAllSystems (pkgs: pkgs.nixfmt-rfc-style);
 
-      nixosModules.default = import ./nix/module.nix { inherit self; };
+      nixosModules = rec {
+        # The agent: what runs on a target. Kept as `default` because that is
+        # what it has always been and consumers depend on it.
+        agent = import ./nix/module.nix { inherit self; };
+
+        # The relay: the one component in this project that accepts a
+        # connection, and therefore the only one that opens a port.
+        relay = import ./nix/relay-module.nix { inherit self; };
+
+        default = agent;
+      };
     };
 }
