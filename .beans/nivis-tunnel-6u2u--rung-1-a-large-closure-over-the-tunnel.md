@@ -57,3 +57,34 @@ rung 1: 16 MiB closure copied in 1s
 throughput measurement — there is no real network here — but it establishes
 there is no stall, no deadlock and no corruption in the path, which was the
 question. Real figures need `nivis-tunnel-zzv6`'s cloud run.
+
+## The real figures, from the cloud run
+
+The paragraph above asks for them. `nivis-tunnel-zzv6` produced them against a
+t3.micro in eu-central-1, through the relay on durer in Nuremberg, over the
+public internet:
+
+- 16 MiB of random data, a path the machine could not already have: copied in
+  1s, sha256 identical on both ends
+- a second copy sent nothing: `copying 0 paths...`
+- a real dependency closure (`hello`, 5 paths, 2 missing) copied, and then run
+  on the target: `Hello, world!`
+
+So the VM figure was not flattered by the absence of a network. Same second,
+across a relay and two cloud hops.
+
+### What it means for relay cost
+
+The question this bean raises is what a relay has to carry per deploy. Measured
+against the running target with its live system built:
+
+```
+live closure       698 paths, 1486 MiB
+already present    665 paths
+to be sent          33 paths,   17 MiB
+```
+
+A deploy moves seventeen megabytes, not fifteen hundred. The same change
+delivered as an image moves 2649 MiB and a quarter of an hour of snapshot
+import. That ratio is what makes a hosted relay plausible rather than
+expensive, and it is the argument `nivis-tunnel-bcxz` will need.
