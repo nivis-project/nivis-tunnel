@@ -54,7 +54,13 @@ you did not first establish that nothing else does.
 ssh root@51.102.104.160          Connection timed out
 TCP connect to 51.102.104.160:22 no connection
 security group                   zero ingress rules
+
+nmap -Pn -p- 51.102.104.160
+  All 65535 scanned ports are in ignored states.
+  Not shown: 65535 filtered tcp ports (no-response)
 ```
+
+Every port, not a sample.
 
 ## Rung 0
 
