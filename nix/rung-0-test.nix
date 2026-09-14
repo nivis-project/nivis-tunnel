@@ -93,7 +93,7 @@ pkgs.testers.runNixOSTest {
       { ... }:
       {
         environment.systemPackages = [
-          self.packages.${system}.tunnel
+          self.packages.${system}.nivis-tunnel
           pkgs.openssh
         ];
 
@@ -173,7 +173,7 @@ pkgs.testers.runNixOSTest {
     with subtest("rung 0: ssh reaches the target through the tunnel"):
         out = orchestrator.succeed(
             "timeout 120 ssh "
-            "-o ProxyCommand='tunnel connect ${streamID} --relay relay:${toString relayPort} --key /root/orchestrator.key' "
+            "-o ProxyCommand='nivis-tunnel connect ${streamID} --relay relay:${toString relayPort} --key /root/orchestrator.key' "
             "-o StrictHostKeyChecking=accept-new "
             "-o ConnectTimeout=30 "
             "-i /root/.ssh/id_ed25519 "
@@ -189,7 +189,7 @@ pkgs.testers.runNixOSTest {
         # through.
         out = orchestrator.succeed(
             "timeout 120 ssh "
-            "-o ProxyCommand='tunnel connect ${streamID} --relay relay:${toString relayPort} --key /root/orchestrator.key' "
+            "-o ProxyCommand='nivis-tunnel connect ${streamID} --relay relay:${toString relayPort} --key /root/orchestrator.key' "
             "-o StrictHostKeyChecking=accept-new "
             "-o ConnectTimeout=30 "
             "-i /root/.ssh/id_ed25519 "
@@ -212,7 +212,7 @@ pkgs.testers.runNixOSTest {
 
         orchestrator.succeed(
             "timeout 300 ssh "
-            "-o ProxyCommand='tunnel connect ${streamID} --relay relay:${toString relayPort} --key /root/orchestrator.key' "
+            "-o ProxyCommand='nivis-tunnel connect ${streamID} --relay relay:${toString relayPort} --key /root/orchestrator.key' "
             "-o StrictHostKeyChecking=accept-new "
             "-i /root/.ssh/id_ed25519 "
             "root@${streamID} "
@@ -231,11 +231,11 @@ pkgs.testers.runNixOSTest {
         # A different orchestrator key must not open a session, and must not
         # take the agent out of reach either.
         orchestrator.succeed(
-            "tunnel keygen --out /root/impostor.key >/dev/null 2>&1"
+            "nivis-tunnel keygen --out /root/impostor.key >/dev/null 2>&1"
         )
         orchestrator.fail(
             "timeout 60 ssh "
-            "-o ProxyCommand='tunnel connect ${streamID} --relay relay:${toString relayPort} --key /root/impostor.key' "
+            "-o ProxyCommand='nivis-tunnel connect ${streamID} --relay relay:${toString relayPort} --key /root/impostor.key' "
             "-o StrictHostKeyChecking=accept-new "
             "-o ConnectTimeout=20 "
             "-i /root/.ssh/id_ed25519 "
@@ -244,7 +244,7 @@ pkgs.testers.runNixOSTest {
 
         out = orchestrator.succeed(
             "timeout 120 ssh "
-            "-o ProxyCommand='tunnel connect ${streamID} --relay relay:${toString relayPort} --key /root/orchestrator.key' "
+            "-o ProxyCommand='nivis-tunnel connect ${streamID} --relay relay:${toString relayPort} --key /root/orchestrator.key' "
             "-o StrictHostKeyChecking=accept-new "
             "-o ConnectTimeout=30 "
             "-i /root/.ssh/id_ed25519 "

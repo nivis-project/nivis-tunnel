@@ -35,7 +35,7 @@ let
 
   system = pkgs.stdenv.hostPlatform.system;
 
-  proxyCommand = "tunnel connect ${streamID} --relay relay:${toString relayPort} --key /root/orchestrator.key";
+  proxyCommand = "nivis-tunnel connect ${streamID} --relay relay:${toString relayPort} --key /root/orchestrator.key";
 in
 pkgs.testers.runNixOSTest {
   name = "nivis-tunnel-rung-1";
@@ -88,7 +88,7 @@ pkgs.testers.runNixOSTest {
       { ... }:
       {
         environment.systemPackages = [
-          self.packages.${system}.tunnel
+          self.packages.${system}.nivis-tunnel
           pkgs.openssh
         ];
 

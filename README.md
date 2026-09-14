@@ -75,7 +75,7 @@ credential: anyone may claim one, and all authority comes from the handshake.
 |--------------------|--------------------------------------------------|
 | `cmd/relay`        | the rendezvous relay |
 | `cmd/agent`        | runs on the target; dials out, waits, splices to local ssh |
-| `cmd/tunnel`       | `nivis-tunnel connect <id>` — usable as an ssh `ProxyCommand` |
+| `cmd/nivis-tunnel` | `nivis-tunnel connect <id>` — usable as an ssh `ProxyCommand` |
 | `internal/proto`   | the wire protocol — why these live in one repo |
 | `nix/module.nix`   | NixOS module for the agent |
 | `test/e2e`         | end-to-end tests, `e2e` build tag |
@@ -106,6 +106,16 @@ public key is baked into the image and the agent accepts only that; the target
 proves nothing and is identified by the address the cloud API returned. Good
 enough to prove the point, not good enough for production. The backlog records
 what production would need.
+
+## Installing the client
+
+The client is the only one of the three binaries meant to sit on a PATH — the
+relay and the agent are services. Its name matches the project on purpose:
+`tunnel` is generic enough to collide with something else.
+
+```sh
+nix profile install github:nivis-project/nivis-tunnel
+```
 
 ## Getting started
 

@@ -34,10 +34,14 @@
 
       # One Go module builds three binaries; they share the wire protocol in
       # ./proto, which is the reason they live in one repository at all.
+      # The binary's name IS the command's name: each cmd/<name> directory
+      # produces a binary called <name>, so the directory is where that decision
+      # is made. The package is prefixed to keep the three distinguishable in a
+      # store listing, except for the client, whose name already is the prefix.
       mkBinary =
         pkgs: name:
         pkgs.buildGoModule {
-          pname = "nivis-tunnel-${name}";
+          pname = if name == "nivis-tunnel" then name else "nivis-tunnel-${name}";
           inherit version;
           src = ./.;
           inherit vendorHash;
@@ -54,8 +58,14 @@
       packages = forAllSystems (pkgs: {
         relay = mkBinary pkgs "relay";
         agent = mkBinary pkgs "agent";
-        tunnel = mkBinary pkgs "tunnel";
-        default = self.packages.${pkgs.stdenv.hostPlatform.system}.tunnel;
+
+        # The client, and the only one of the three meant to sit on an
+        # operator's PATH — so it is named for the project rather than `tunnel`,
+        # which is both generic enough to collide and not what the README, the
+        # NixOS module and the provider's default all say.
+        nivis-tunnel = mkBinary pkgs "nivis-tunnel";
+
+        default = self.packages.${pkgs.stdenv.hostPlatform.system}.nivis-tunnel;
       });
 
       devShells = forAllSystems (pkgs: {
@@ -79,7 +89,7 @@
         {
           build-relay = self.packages.${pkgs.stdenv.hostPlatform.system}.relay;
           build-agent = self.packages.${pkgs.stdenv.hostPlatform.system}.agent;
-          build-tunnel = self.packages.${pkgs.stdenv.hostPlatform.system}.tunnel;
+          build-nivis-tunnel = self.packages.${pkgs.stdenv.hostPlatform.system}.nivis-tunnel;
 
           # Run through buildGoModule rather than a bare `go test`: the Nix
           # sandbox has no network, so the tests must be built from the same
