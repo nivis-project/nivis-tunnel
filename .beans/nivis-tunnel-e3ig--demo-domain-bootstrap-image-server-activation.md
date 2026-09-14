@@ -72,3 +72,33 @@ already.
 
 This bean stays the tracking epic; the code and the OpenSpec change live where
 they are useful.
+
+## Status: the image and the server half is done, the activation half is not
+
+`040_tunnel_target` exists in nivis-demos and is applied. A t3.micro
+(`i-01415faf5b5b44b99`) boots the bootstrap image, the agent dials out to the
+relay on durer by itself, and the machine is reachable over the tunnel while
+admitting nothing: direct ssh to its public address times out and its security
+group has no ingress rules.
+
+Both rungs hold there. Rung 0 is an interactive session; rung 1 is a closure
+pushed over the tunnel, 16 MiB byte-identical in 1s, a repeat sending nothing,
+and a real dependency closure copied and then executed on the target.
+
+What the acceptance still asks for is "with the live configuration active", and
+that is the half that does not exist yet. `/etc/tunnel-target-generation` on
+the machine still reads `bootstrap`, which is the marker put there so a later
+activation has something observable to change.
+
+So what remains is the `nixos_activation` resource in the domain, which is
+nivis-tunnel-8p2j (rung 3). This bean closes when a changed `liveSystem`
+produces a plan in which only the activation resource differs: no new snapshot,
+no new AMI, no replaced server.
+
+### Worth carrying into that work
+
+The image chain cost about a quarter of an hour per change and broke in three
+separate ways before it came up. That is not incidental to the PoC, it is the
+thing the PoC exists to remove: after the activation resource, only the
+partition layout, the filesystem, the boot mode and the agent itself should
+ever force that chain to run again.

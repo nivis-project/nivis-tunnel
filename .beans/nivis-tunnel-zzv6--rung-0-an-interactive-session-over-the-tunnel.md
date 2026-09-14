@@ -1,11 +1,11 @@
 ---
 # nivis-tunnel-zzv6
 title: 'Rung 0: an interactive session over the tunnel'
-status: in-progress
+status: completed
 type: epic
 priority: normal
 created_at: 2026-09-11T14:56:38Z
-updated_at: 2026-09-11T15:58:15Z
+updated_at: 2026-09-14T20:53:00Z
 parent: nivis-tunnel-xvjv
 blocked_by:
     - nivis-tunnel-qtx9
@@ -17,38 +17,71 @@ blocked_by:
 
 The acceptance test for milestone 02.
 
-## Status: proven hermetically, not yet against a cloud
+## Proven, hermetically and against a cloud
 
-**The claim is proven.** `nix flake check` runs a NixOS VM test with three
-machines — a relay, a target, and an operator — in which:
+`nix flake check` runs a NixOS VM test with three machines in which the
+target admits nothing, direct ssh to it fails, and a session opens through
+the tunnel anyway. That was the transport. What remained was the environment:
+a real NAT, a real public relay, real latency, a real cloud firewall rather
+than nftables in a VM.
 
-- the target's firewall admits nothing, and **direct ssh to it fails**
-- `ssh -o ProxyCommand='tunnel connect <id> --relay ... --key ...'` opens a
-  session and runs a command on it
-- the machine is reachable again on a second session, with nothing restarted
-- 32 MiB produced on the target arrives byte-identical at the operator
-- an impostor key cannot open a session, and the agent survives the attempt
+That has now been done.
 
-The negative — that direct ssh fails — is what makes this a proof rather than a
-demonstration. Its first run caught exactly the mistake it exists to catch: the
-target was reachable all along, because `services.openssh.openFirewall` defaults
-to true and firewall port lists merge rather than override.
+## The cloud run
 
-## What remains
+- **Relay**: durer (`nuremberg.pimsnel.com:7843`), via the mipnix module
+  `networking-nivis-tunnel-relay`.
+- **Target**: `i-01415faf5b5b44b99`, a t3.micro in eu-central-1 built from
+  `040_tunnel_target` in nivis-demos. Security group with no ingress rules at
+  all, host firewall with empty `allowedTCPPorts`, no instance profile, no DNS
+  record.
 
-The original acceptance names **a host on Hetzner or AWS**. That has not been
-done, and cannot be done from here: it needs a cloud account, credentials and a
-relay reachable from it.
+The agent dialled out on its own after boot, from the relay log:
 
-Everything the cloud run would exercise beyond the VM test is environmental — a
-real NAT, a real public relay, real latency, a real cloud firewall rather than
-nftables in a VM. The transport itself is proven.
+```
+22:44:48  parked  stream=poc-target-aws-01 role=agent
+22:48:27  paired  stream=poc-target-aws-01 role=orchestrator with=agent
+22:48:27  session ended
+22:48:27  parked  role=agent
+```
 
-## To close this bean
+## The negative, recorded first
 
-1. A relay on a reachable address.
-2. A Hetzner or AWS host with the agent enabled, its cloud firewall admitting
-   nothing, and `services.nivis-tunnel-agent.streamId` set to the instance id.
-3. `ssh -o ProxyCommand='nivis-tunnel connect <instance-id> ...' root@<instance-id> uptime`
-4. A port scan of the host's public address showing nothing open. Record both;
-   the negative is half the claim.
+Deliberately before the session, because a tunnel that works proves nothing if
+you did not first establish that nothing else does.
+
+```
+ssh root@51.102.104.160          Connection timed out
+TCP connect to 51.102.104.160:22 no connection
+security group                   zero ingress rules
+```
+
+## Rung 0
+
+```
+$ ssh -o ProxyCommand="nivis-tunnel connect poc-target-aws-01 --relay nuremberg.pimsnel.com:7843 --key ..." root@poc-target-aws-01
+poc-target-aws-01
+ 20:48:27  up   0:03,  0 users
+active
+```
+
+## Rung 1, also on real infrastructure
+
+16 MiB of random data, a path the machine could not already have:
+
+- copied in 1s, sha256 identical on both ends
+- a second copy sent nothing: `copying 0 paths...`
+- a real closure with dependencies (`hello`, 5 paths, 2 missing) copied and
+  then executed on the target: `Hello, world!`
+
+## Summary of Changes
+
+Nothing in this repo changed to make this work. The transport, the agent
+module, the relay module and the CLI were all already proven in the VM tests;
+this bean was open on an environmental claim, and the environment now agrees.
+
+What it took was in nivis-demos and nivis, and is recorded there: a truncated
+image upload that nothing was positioned to notice (nivis-demos-u4x9,
+nixform2-sqco, nixform2-xqy1), an S3 key that did not carry the image so a
+rebuilt image never reached the machine (nivis-demos-1wj0), and two
+replacement defects in nivis (nixform2-nwnf, nixform2-aur6).
