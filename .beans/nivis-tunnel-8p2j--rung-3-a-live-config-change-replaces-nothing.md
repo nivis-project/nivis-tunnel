@@ -1,11 +1,11 @@
 ---
 # nivis-tunnel-8p2j
 title: 'Rung 3: a live-config change replaces nothing'
-status: todo
+status: in-progress
 type: epic
 priority: normal
 created_at: 2026-09-11T14:56:57Z
-updated_at: 2026-09-11T14:58:51Z
+updated_at: 2026-09-14T21:08:56Z
 parent: nivis-tunnel-c03l
 blocked_by:
     - nivis-tunnel-e3ig
@@ -45,3 +45,14 @@ Rung 2 becomes available and is free evidence: point elastinix's
 scripts unchanged. Same scripts, same machine, same closure, only the transport
 differs — so anything that breaks is attributable to the tunnel and nothing
 else.
+
+## OpenSpec
+
+`tunnel-target-activation`, in the `nivis` store, implemented in nivis-demos
+where `040_tunnel_target` lives.
+
+The fallback is already verified: the EC2 serial console reaches a login prompt
+on the running target. That matters because this machine has no inbound port at
+all, so a failed activation has no network route back, and magic rollback
+(nivis-tunnel-wnkn) is deliberately not in this change.
+
