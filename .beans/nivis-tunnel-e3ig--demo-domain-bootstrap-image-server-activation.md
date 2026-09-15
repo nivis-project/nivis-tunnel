@@ -1,11 +1,11 @@
 ---
 # nivis-tunnel-e3ig
 title: 'Demo domain: bootstrap image, server, activation'
-status: in-progress
+status: completed
 type: epic
 priority: normal
 created_at: 2026-09-11T14:56:57Z
-updated_at: 2026-09-14T16:03:50Z
+updated_at: 2026-09-15T07:13:02Z
 parent: nivis-tunnel-c03l
 blocked_by:
     - nivis-tunnel-5x9w
@@ -102,3 +102,18 @@ separate ways before it came up. That is not incidental to the PoC, it is the
 thing the PoC exists to remove: after the activation resource, only the
 partition layout, the filesystem, the boot mode and the agent itself should
 ever force that chain to run again.
+
+
+## Summary of Changes
+
+Complete. The domain is `040_tunnel_target` in nivis-demos, and the acceptance
+this bean asked for, a booted server reachable over the tunnel with the live
+configuration active, holds: `/etc/tunnel-target-generation` reads `live-2`
+where it read `bootstrap`, and nginx serves that value on the machine.
+
+The OpenSpec change is `tunnel-target-activation`, in the `nivis` store,
+following `tunnel-target-domain` which built the machine.
+
+The measurements are on nivis-tunnel-8p2j, which was the other half of this and
+closes with it. The one line worth repeating here: a live change moved 343 KiB
+in 4 seconds, where the image route moves 2649 MiB and a quarter of an hour.
